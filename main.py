@@ -14,7 +14,7 @@ from torch.optim.lr_scheduler import StepLR
 import torch.multiprocessing as mp
 import torch.utils.data
 import torch.utils.data.distributed
-from read_data import read_cifar10
+from read_data import read_cifar10, read_cifar100
 from models import *
 from INAdam import INAdam
 from adam import Adam
@@ -46,6 +46,7 @@ parser.add_argument('--wd', '--weight_decay', default=5e-4, type=float,
 parser.add_argument('--seed', default=5, type=int,
                     help='seed for initializing training. ')
 parser.add_argument('--norm_t', default=1, type=int, help='norm_t')
+parser.add_argument('--dataset', default=1, type=int, help='0 for cifar10, 1 for cifar100')
 parser.add_argument('--save_dir', type=str, default='./results')
 parser.add_argument('--nsgd', type=int, default=3, dest='nsgd',
                     help='Which optimizer to use. 1 for SGD, 2 for Adam, 3 for INAdam, 4 for Adam from Scratch')
@@ -74,6 +75,7 @@ def main_worker(args):
     nsgd = args.nsgd
     learning_rate = args.lr
     norm_t = args.norm_t
+    dataset = args.dataset
 
     def my_seed_every(seed: int) -> None:
         torch.manual_seed(seed)
@@ -93,22 +95,15 @@ def main_worker(args):
 
 
 
-    dataset= "cifar10"
+
     data_dir = 'data'
     transform = transforms.Compose([transforms.ToTensor(), 
                                               transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    # CIFAR-10 dataloader generator
-    train_generator,test_generator = read_cifar10(batch_size,data_dir, my_seed_every,seed,False) 
-    """
-    trainset = torchvision.datasets.CIFAR10(root='./data', train=True, 
-                                        download=True, transform=transform)
-    my_seed_every(seed=0)
-    train_generator = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
-    testset = torchvision.datasets.CIFAR10(root='./data', train=False,
-                                        download=True, transform=transform)
-    test_generator = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False)
-    """
+    if dataset == 0:
+        train_generator,test_generator = read_cifar10(batch_size,data_dir, my_seed_every, seed, seed_worker, g, False)
+    elif dataset == 1:
+        train_generator,test_generator = read_cifar100(batch_size,data_dir, my_seed_every, seed, seed_worker, g, False)
 
     # Model type
     my_seed_every(seed=0)
